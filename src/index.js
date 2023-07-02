@@ -22,7 +22,8 @@ poblox.init = async () => {
         };
       }
     }
-  
+
+    global.poblox = poblox;
     return poblox;
   };
 
@@ -42,11 +43,41 @@ poblox.setCookie = async (cookie) => {
     }).then((res) => {
         poblox.userId = res.data.id;
         poblox.username = res.data.name;
+        poblox.cookie = cookie;
+
+        await poblox.getGeneralXCSRF(cookie).then((res) => {
+          poblox.xcsrf_token = res;
+        }).catch((err) => { throw new Error("Failed to get X-CSRF token") });
         return res.data;
     }).catch((err) => {
         console.log(err);
         return err;
     });
+}
+
+/**
+  * Get X-CSRF token
+  * @param {String} cookie
+*/ 
+poblox.getGeneralXCSRF = async (cookie) => {
+  return new Promise(async (resolve, reject) => {
+    axios.post(`https://auth.roblox.com/v2/logout`, {}, {
+      timeout: 12000,
+      headers: {
+        Cookie: `.`
+      },
+      validateStatus: () => { return true; }
+    }).then((res) => {
+      let headers = response.headers;
+      let token = headers['x-csrf-token'];
+
+      if (!token) return reject('An error occurred while trying to get XCSRF token!');
+      return resolve(token);
+    }).catch((err) => {
+      if (!err.response) return reject('Roblox did not respond in time.');
+      return reject('An error occurred while trying to get your XCSRF token.');
+    });
+  });
 }
 
 poblox.requests.get = (url, params) => {
